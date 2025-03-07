@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tetris Game</title>
+  <!-- Google Fonts untuk tampilan modern -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    /* Variabel CSS */
+    :root {
+      --background-dark: #121212;
+      --background-light: #f5f5f5;
+      --primary-dark: #1e1e1e;
+      --primary-light: #ffffff;
+      --accent: #bb86fc;
+      --accent-hover: #9b67d9;
+      --text-dark: #e0e0e0;
+      --text-light: #333333;
+    }
+    
+    /* Reset global */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      font-family: 'Roboto', sans-serif;
+    }
+    
+    /* Default tema dark */
+    body {
+      background-color: var(--background-dark);
+      color: var(--text-dark);
+    }
+    body.light {
+      background-color: var(--background-light);
+      color: var(--text-light);
+    }
+    
+    /* Nonaktifkan scroll untuk desktop */
+    @media (min-width: 769px) {
+      html, body {
+        overflow: hidden;
+      }
+    }
+    
+    /* Container utama: full viewport dan center */
+    .container {
+      height: 100vh;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    
+    /* Kartu Menu dengan desain minimalis dan modern */
+    .menu-card {
+      background-color: var(--primary-dark);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 20px;
+    }
+    body.light .menu-card {
+      background-color: var(--primary-light);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    .menu-card h1 {
+      margin-bottom: 20px;
+      font-size: 2.5rem;
+      font-weight: 700;
+    }
+    .menu-card button,
+    .menu-card select {
+      padding: 10px 15px;
+      margin: 10px 5px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: var(--accent);
+      color: var(--primary-light);
+      transition: background-color 0.3s;
+    }
+    .menu-card button:hover,
+    .menu-card select:hover {
+      background-color: var(--accent-hover);
+    }
+    
+    /* Container Game */
+    #game-container {
+      display: none;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      position: relative;
+    }
+    /* Container untuk skor dan tombol pause (disusun horizontal) */
+    #score-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding: 0 10px;
+    }
+    #score-container {
+      font-size: 1.2rem;
+    }
+    canvas {
+      background-color: #000;
+      border: 2px solid #333;
+      border-radius: 5px;
+      display: block;
+      margin: 0 auto;
+    }
+    
+    /* Tombol pause khusus untuk mobile */
+    #pause-button {
+      display: none;
+    }
+    @media (max-width: 768px) {
+      #pause-button {
+        display: block;
+        padding: 8px 16px;
+        font-size: 1rem;
+        border: none;
+        border-radius: 5px;
+        background-color: var(--accent);
+        color: var(--primary-light);
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      #pause-button:hover {
+        background-color: var(--accent-hover);
+      }
+      .menu-card {
+        max-width: 90%;
+      }
+      /* Untuk mobile, canvas diatur berdasarkan lebar layar.
+         Karena board memiliki 10 kolom, lebar canvas 90% menentukan BLOCK_SIZE,
+         dan tinggi canvas disesuaikan agar terdapat 20 baris. */
+      #tetris {
+        width: 90%;
+      }
+      .container{
+        padding: 0;
+      }
+    }
+    
+    /* Pengaturan canvas untuk desktop */
+    @media (min-width: 769px) {
+      #tetris {
+        width: 300px;
+        height: 600px;
+      }
+    }
+    
+    /* Pause Menu Overlay */
+    #pause-menu {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    #pause-menu .pause-content {
+      background: var(--primary-dark);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    body.light #pause-menu .pause-content {
+      background: var(--primary-light);
+    }
+    #pause-menu h2 {
+      margin-bottom: 20px;
+      color: var(--primary-light);
+    }
+    #pause-menu button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: var(--accent);
+      color: var(--primary-light);
+      transition: background-color 0.3s;
+    }
+    #pause-menu button:hover {
+      background-color: var(--accent-hover);
+    }
+  </style>
+</head>
+<body class="dark">
+  <div class="container">
+    <!-- Main Menu -->
+    <div id="main-menu" class="menu-card">
+      <h1 id="menu-title">Tetris</h1>
+      <button id="start-button">Start Game</button>
+      <div>
+        <label for="language-select" id="language-label" style="margin-right: 5px;">Language:</label>
+        <select id="language-select">
+          <option value="en" selected>English</option>
+          <option value="id">Bahasa Indonesia</option>
+          <option value="ru">Русский</option>
+        </select>
+      </div>
+      <div>
+        <label for="theme-select" id="theme-label" style="margin-right: 5px;">Theme:</label>
+        <select id="theme-select">
+          <option value="dark" selected>Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- Game Container -->
+    <div id="game-container">
+      <div id="score-wrapper">
+        <div id="score-container"><span id="score-label">Score: 0</span></div>
+        <!-- Tombol pause untuk mobile (juga dapat dipakai di desktop lewat ESC) -->
+        <button id="pause-button">▶️</button>
+      </div>
+      <canvas id="tetris"></canvas>
+    </div>
+    
+    <!-- Pause Menu Overlay -->
+    <div id="pause-menu">
+      <div class="pause-content">
+        <h2>Paused</h2>
+        <button id="resume-button">Resume</button>
+        <button id="quit-button">Quit to Menu</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Objek terjemahan untuk bahasa
+    const translations = {
+      en: { title: "Tetris", start: "Start Game", language: "Language:", theme: "Theme:", score: "Score:" },
+      id: { title: "Tetris", start: "Mulai Game", language: "Bahasa:", theme: "Tema:", score: "Skor:" },
+      ru: { title: "Тетрис", start: "Начать игру", language: "Язык:", theme: "Тема:", score: "Счет:" }
+    };
+    
+    // Elemen UI
+    const menuTitle = document.getElementById('menu-title');
+    const startButton = document.getElementById('start-button');
+    const languageSelect = document.getElementById('language-select');
+    const themeSelect = document.getElementById('theme-select');
+    const languageLabel = document.getElementById('language-label');
+    const themeLabel = document.getElementById('theme-label');
+    const scoreLabel = document.getElementById('score-label');
+    const mainMenu = document.getElementById('main-menu');
+    const gameContainer = document.getElementById('game-container');
+    const canvas = document.getElementById('tetris');
+    const ctx = canvas.getContext('2d');
+    const pauseMenu = document.getElementById('pause-menu');
+    const pauseButton = document.getElementById('pause-button');
+    const resumeButton = document.getElementById('resume-button');
+    const quitButton = document.getElementById('quit-button');
+    
+    let currentLanguage = 'en';
+    let score = 0;
+    function updateTranslations() {
+      const t = translations[currentLanguage];
+      menuTitle.textContent = t.title;
+      startButton.textContent = t.start;
+      languageLabel.textContent = t.language;
+      themeLabel.textContent = t.theme;
+      scoreLabel.textContent = t.score + " " + score;
+    }
+    
+    languageSelect.addEventListener('change', (e) => {
+      currentLanguage = e.target.value;
+      updateTranslations();
+    });
+    themeSelect.addEventListener('change', (e) => {
+      document.body.className = e.target.value;
+    });
+    
+    // Variabel dan fungsi game Tetris
+    const COLS = 10, ROWS = 20;
+    let BLOCK_SIZE = 30; // Nilai default (akan disesuaikan secara dinamis)
+    let board = createMatrix(COLS, ROWS);
+    let dropCounter = 0, dropInterval = 1000, lastTime = 0, gameOver = false;
+    let paused = false;
+    let animationFrameId = null;
+    
+    const tetrominoes = {
+      T: { shape: [[0,1,0],[1,1,1],[0,0,0]], color: 'purple' },
+      O: { shape: [[1,1],[1,1]], color: 'yellow' },
+      L: { shape: [[0,0,1],[1,1,1],[0,0,0]], color: 'orange' },
+      J: { shape: [[1,0,0],[1,1,1],[0,0,0]], color: 'blue' },
+      I: { shape: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], color: 'cyan' },
+      S: { shape: [[0,1,1],[1,1,0],[0,0,0]], color: 'green' },
+      Z: { shape: [[1,1,0],[0,1,1],[0,0,0]], color: 'red' }
+    };
+    
+    let currentPiece = null;
+    
+    function createMatrix(width, height) {
+      const matrix = [];
+      for (let y = 0; y < height; y++) {
+        matrix.push(new Array(width).fill(0));
+      }
+      return matrix;
+    }
+    
+    function drawMatrix(matrix, offset) {
+      matrix.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) {
+            ctx.fillStyle = value;
+            ctx.fillRect((x + offset.x) * BLOCK_SIZE, (y + offset.y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            ctx.strokeStyle = "#222";
+            ctx.lineWidth = 2;
+            ctx.strokeRect((x + offset.x) * BLOCK_SIZE, (y + offset.y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+          }
+        });
+      });
+    }
+    
+    function draw() {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawMatrix(board, { x: 0, y: 0 });
+      if (currentPiece) {
+        drawMatrix(currentPiece.shape, currentPiece.pos);
+      }
+    }
+    
+    function merge(board, piece) {
+      piece.shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) {
+            board[y + piece.pos.y][x + piece.pos.x] = piece.color;
+          }
+        });
+      });
+    }
+    
+    function collide(board, piece) {
+      const m = piece.shape, o = piece.pos;
+      for (let y = 0; y < m.length; y++) {
+        for (let x = 0; x < m[y].length; x++) {
+          if (m[y][x] !== 0 &&
+              (board[y + o.y] && board[y + o.y][x + o.x]) !== 0) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    
+    function rotate(matrix) {
+      for (let y = 0; y < matrix.length; y++) {
+        for (let x = 0; x < y; x++) {
+          [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+        }
+      }
+      matrix.forEach(row => row.reverse());
+      return matrix;
+    }
+    
+    function playerDrop() {
+      currentPiece.pos.y++;
+      if (collide(board, currentPiece)) {
+        currentPiece.pos.y--;
+        merge(board, currentPiece);
+        resetPiece();
+        clearLines();
+        updateScore();
+        if (collide(board, currentPiece)) {
+          gameOver = true;
+          alert("Game Over");
+          resetGame();
+        }
+      }
+      dropCounter = 0;
+    }
+    
+    // Fungsi untuk memindahkan blok ke kiri/kanan
+    function playerMove(dir) {
+      currentPiece.pos.x += dir;
+      if (collide(board, currentPiece)) {
+        currentPiece.pos.x -= dir;
+      }
+    }
+    
+    // Fungsi rotasi: tiap pemanggilan mengubah bentuk blok 90 derajat
+    function playerRotate() {
+      const pos = currentPiece.pos.x;
+      let offset = 1;
+      rotate(currentPiece.shape);
+      while (collide(board, currentPiece)) {
+        currentPiece.pos.x += offset;
+        offset = -(offset + (offset > 0 ? 1 : -1));
+        if (Math.abs(offset) > currentPiece.shape[0].length) {
+          // Jika tidak ada posisi valid, batalkan rotasi dengan mengembalikan bentuk semula
+          rotate(currentPiece.shape);
+          rotate(currentPiece.shape);
+          rotate(currentPiece.shape);
+          currentPiece.pos.x = pos;
+          return;
+        }
+      }
+    }
+    
+    function clearLines() {
+      outer: for (let y = board.length - 1; y >= 0; y--) {
+        for (let x = 0; x < board[y].length; x++) {
+          if (board[y][x] === 0) {
+            continue outer;
+          }
+        }
+        const row = board.splice(y, 1)[0].fill(0);
+        board.unshift(row);
+        score += 10;
+        y++;
+      }
+    }
+    
+    function updateScore() {
+      scoreLabel.textContent = translations[currentLanguage].score + " " + score;
+    }
+    
+    function resetPiece() {
+      const keys = Object.keys(tetrominoes);
+      const randKey = keys[Math.floor(Math.random() * keys.length)];
+      const pieceData = tetrominoes[randKey];
+      const shape = pieceData.shape.map(row => row.map(cell => cell ? pieceData.color : 0));
+      currentPiece = {
+        pos: { x: Math.floor(COLS / 2) - Math.floor(pieceData.shape[0].length / 2), y: 0 },
+        shape: shape,
+        color: pieceData.color
+      };
+    }
+    
+    function update(time = 0) {
+      const deltaTime = time - lastTime;
+      lastTime = time;
+      dropCounter += deltaTime;
+      if (dropCounter > dropInterval) {
+        playerDrop();
+      }
+      draw();
+      if (!gameOver && !paused) {
+        animationFrameId = requestAnimationFrame(update);
+      }
+    }
+    
+    function resetGame() {
+      board = createMatrix(COLS, ROWS);
+      score = 0;
+      updateScore();
+      gameOver = false;
+      resetPiece();
+      lastTime = performance.now();
+      animationFrameId = requestAnimationFrame(update);
+    }
+    
+    // Fungsi pause dan resume
+    function pauseGame() {
+      if (!paused) {
+        paused = true;
+        cancelAnimationFrame(animationFrameId);
+        pauseMenu.style.display = 'flex';
+      }
+    }
+    
+    function resumeGame() {
+      if (paused) {
+        paused = false;
+        pauseMenu.style.display = 'none';
+        lastTime = performance.now();
+        animationFrameId = requestAnimationFrame(update);
+      }
+    }
+    
+    function quitGame() {
+      paused = false;
+      cancelAnimationFrame(animationFrameId);
+      pauseMenu.style.display = 'none';
+      gameContainer.style.display = 'none';
+      mainMenu.style.display = 'block';
+    }
+    
+    // === Dukungan Keyboard (Desktop) ===
+    document.addEventListener('keydown', event => {
+      if (!currentPiece) return;
+      if (event.key === "ArrowLeft") {
+        playerMove(-1);
+      } else if (event.key === "ArrowRight") {
+        playerMove(1);
+      } else if (event.key === "ArrowDown") {
+        playerDrop();
+      } else if (event.key === "ArrowUp") {
+        playerRotate();
+      } else if (event.key === "Escape") {
+        if (!paused) {
+          pauseGame();
+        } else {
+          resumeGame();
+        }
+      }
+    });
+    
+    // === Dukungan Touch untuk Mobile ===
+    let touchStartX = 0, touchStartY = 0;
+    let holdTimeout = null, holdIntervalId = null;
+    const swipeThreshold = 30; // Minimal perpindahan (px) untuk mendeteksi swipe
+    let verticalSwipeHandled = false; // Flag agar aksi vertikal hanya diproses satu kali per gesture
+    
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      verticalSwipeHandled = false;
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        holdTimeout = setTimeout(() => {
+          holdIntervalId = setInterval(() => {
+            playerDrop();
+          }, 100);
+        }, 300);
+      }
+    }, { passive: false });
+    
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        const dx = touch.clientX - touchStartX;
+        const dy = touch.clientY - touchStartY;
+        // Jika swipe horizontal dominan
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > swipeThreshold) {
+          if (dx > 0) {
+            playerMove(1);
+          } else {
+            playerMove(-1);
+          }
+          touchStartX = touch.clientX;
+          touchStartY = touch.clientY;
+          clearTouchTimers();
+        }
+        // Jika swipe vertikal dominan dan belum diproses
+        else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > swipeThreshold && !verticalSwipeHandled) {
+          // Swipe ke atas (dy negatif) untuk rotasi
+          if (dy < 0) {
+            playerRotate();
+          }
+          // Swipe ke bawah (dy positif) untuk drop cepat
+          else if (dy > 0) {
+            playerDrop();
+          }
+          verticalSwipeHandled = true;
+          touchStartX = touch.clientX;
+          touchStartY = touch.clientY;
+          clearTouchTimers();
+        }
+      }
+    }, { passive: false });
+    
+    function clearTouchTimers() {
+      if (holdTimeout) {
+        clearTimeout(holdTimeout);
+        holdTimeout = null;
+      }
+      if (holdIntervalId) {
+        clearInterval(holdIntervalId);
+        holdIntervalId = null;
+      }
+    }
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      clearTouchTimers();
+    }, { passive: false });
+    canvas.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      clearTouchTimers();
+    }, { passive: false });
+    
+    // Sesuaikan ukuran canvas dan BLOCK_SIZE secara dinamis
+    function adjustCanvas() {
+      if (window.innerWidth <= 768) {
+        canvas.width = window.innerWidth * 0.9;
+        BLOCK_SIZE = canvas.width / COLS;
+        canvas.height = BLOCK_SIZE * ROWS;
+      } else {
+        canvas.width = 300;
+        canvas.height = 600;
+        BLOCK_SIZE = 30;
+      }
+      draw();
+    }
+    
+    // Mulai game saat tombol "Start Game" diklik
+    startButton.addEventListener('click', () => {
+      mainMenu.style.display = 'none';
+      gameContainer.style.display = 'block';
+      adjustCanvas();
+      resetGame();
+    });
+    
+    // Update ukuran canvas saat window diresize
+    window.addEventListener('resize', () => {
+      if (gameContainer.style.display === 'block') {
+        adjustCanvas();
+      }
+    });
+    
+    // Event listener untuk tombol pause (mobile)
+    pauseButton.addEventListener('click', () => {
+      if (!paused) {
+        pauseGame();
+      } else {
+        resumeGame();
+      }
+    });
+    
+    // Event listener untuk pause menu buttons
+    resumeButton.addEventListener('click', resumeGame);
+    quitButton.addEventListener('click', quitGame);
+    
+    updateTranslations();
+  </script>
+</body>
+</html>
